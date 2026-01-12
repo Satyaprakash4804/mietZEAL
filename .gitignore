@@ -5,3 +5,4 @@ venv/
 .env/
 
 uploads/
+static/qr

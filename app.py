@@ -162,7 +162,7 @@ def register():
 
             upi_link = (
                 f"upi://pay?"
-                f"pa=6393444944@upi&"
+                f"pa=9871223900@ptaxis&"
                 f"pn=ZEAL10&"
                 f"am={total}&"
                 f"cu=INR"
