@@ -65,6 +65,8 @@ EVENT_PRICES = {
     "BGMI": 100,
     "Beat Boxing": 100,
     "Band": 500,
+    "Stand up Comedy (Mike & Madness)": 100,
+    "Nail Art Competition (Nail Fusion)": 100,
     # Category-based events
     "Dance Competition - Solo": 100,
     "Dance Competition - Duet": 200,
