@@ -9,6 +9,9 @@ from io import BytesIO
 import cloudinary
 import cloudinary.uploader
 from dotenv import load_dotenv
+import mysql.connector
+from mysql.connector import Error
+import traceback
 
 # Load environment variables
 load_dotenv()
@@ -24,12 +27,19 @@ cloudinary.config(
 )
 
 # ---------------- CONFIG ----------------
-DB_FILE = "database.json"
 QR_DIR = "static/qr"
-
 os.makedirs(QR_DIR, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
+
+# ---------------- MYSQL CONFIG ----------------
+DB_CONFIG = {
+    'host': os.getenv('MYSQL_HOST', 'localhost'),
+    'user': os.getenv('MYSQL_USER', 'root'),
+    'password': os.getenv('MYSQL_PASSWORD', ''),
+    'database': os.getenv('MYSQL_DATABASE', 'zeal10_db'),
+    
+}
 
 # ---------------- EVENTS & PRICES ----------------
 EVENT_PRICES = {
@@ -66,52 +76,194 @@ EVENT_PRICES = {
     "Singing - Duet": 200,
 }
 
-# ---------------- JSON DATABASE FUNCTIONS ----------------
-def init_db():
-    """Initialize JSON database file if it doesn't exist"""
-    if not os.path.exists(DB_FILE):
-        with open(DB_FILE, 'w') as f:
-            json.dump({"registrations": [], "last_id": 0}, f, indent=2)
-        print("JSON database initialized successfully!")
-    else:
-        print("JSON database already exists!")
-
-def read_db():
-    """Read data from JSON database"""
+# ---------------- DATABASE FUNCTIONS ----------------
+def get_db_connection():
+    """Create and return a database connection"""
     try:
-        with open(DB_FILE, 'r') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        return {"registrations": [], "last_id": 0}
+        connection = mysql.connector.connect(**DB_CONFIG)
+        if connection.is_connected():
+            return connection
+    except Error as e:
+        print(f"Error connecting to MySQL: {e}")
+        return None
 
-def write_db(data):
-    """Write data to JSON database"""
-    with open(DB_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
+def init_db():
+    """Initialize MySQL database and create tables if they don't exist"""
+    try:
+        # First, connect without specifying database to create it if needed
+        temp_config = DB_CONFIG.copy()
+        database_name = temp_config.pop('database')
+        
+        connection = mysql.connector.connect(**temp_config)
+        cursor = connection.cursor()
+        
+        # Create database if not exists
+        cursor.execute(f"CREATE DATABASE IF NOT EXISTS {database_name}")
+        print(f"Database '{database_name}' checked/created successfully!")
+        
+        cursor.close()
+        connection.close()
+        
+        # Now connect to the specific database
+        connection = get_db_connection()
+        if connection is None:
+            print("Failed to connect to database!")
+            return False
+            
+        cursor = connection.cursor()
+        
+        # Create registrations table
+        create_table_query = """
+        CREATE TABLE IF NOT EXISTS registrations (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            student_name VARCHAR(255) NOT NULL,
+            roll_no VARCHAR(100) NOT NULL,
+            course VARCHAR(255) NOT NULL,
+            college VARCHAR(255) NOT NULL,
+            college_id VARCHAR(100),
+            other_college VARCHAR(255),
+            events TEXT NOT NULL,
+            group_members TEXT,
+            contact_numbers VARCHAR(255) NOT NULL,
+            total_amount DECIMAL(10, 2) NOT NULL,
+            payment_screenshot_url TEXT NOT NULL,
+            payment_status VARCHAR(50) DEFAULT 'Submitted',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_student_name (student_name),
+            INDEX idx_roll_no (roll_no),
+            INDEX idx_college (college),
+            INDEX idx_created_at (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        """
+        
+        cursor.execute(create_table_query)
+        connection.commit()
+        
+        print("Table 'registrations' checked/created successfully!")
+        print("Database initialization completed!")
+        
+        cursor.close()
+        connection.close()
+        return True
+        
+    except Error as e:
+        print(f"Error during database initialization: {e}")
+        traceback.print_exc()
+        return False
 
 def add_registration(registration_data):
     """Add a new registration to the database"""
-    db = read_db()
-    db["last_id"] += 1
-    registration_data["id"] = db["last_id"]
-    registration_data["created_at"] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    db["registrations"].append(registration_data)
-    write_db(db)
-    print(f"Registration added successfully with ID: {db['last_id']}")
-    print(f"Total registrations: {len(db['registrations'])}")
-    return db["last_id"]
+    try:
+        connection = get_db_connection()
+        if connection is None:
+            raise Exception("Database connection failed")
+            
+        cursor = connection.cursor()
+        
+        insert_query = """
+        INSERT INTO registrations 
+        (student_name, roll_no, course, college, college_id, other_college, 
+         events, group_members, contact_numbers, total_amount, 
+         payment_screenshot_url, payment_status)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        
+        values = (
+            registration_data['student_name'],
+            registration_data['roll_no'],
+            registration_data['course'],
+            registration_data['college'],
+            registration_data.get('college_id', ''),
+            registration_data.get('other_college', ''),
+            registration_data['events'],
+            registration_data.get('group_members', ''),
+            registration_data['contact_numbers'],
+            registration_data['total_amount'],
+            registration_data['payment_screenshot_url'],
+            registration_data.get('payment_status', 'Submitted')
+        )
+        
+        cursor.execute(insert_query, values)
+        connection.commit()
+        
+        registration_id = cursor.lastrowid
+        
+        print(f"Registration added successfully with ID: {registration_id}")
+        
+        cursor.close()
+        connection.close()
+        
+        return registration_id
+        
+    except Error as e:
+        print(f"Error adding registration: {e}")
+        traceback.print_exc()
+        raise
 
 def get_all_registrations():
     """Get all registrations sorted by created_at (newest first)"""
-    db = read_db()
-    registrations = db["registrations"]
-    print(f"Retrieved {len(registrations)} registrations from database")
-    # Sort by created_at descending (newest first)
-    registrations.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    return registrations
+    try:
+        connection = get_db_connection()
+        if connection is None:
+            return []
+            
+        cursor = connection.cursor(dictionary=True)
+        
+        query = """
+        SELECT id, student_name, roll_no, course, college, college_id, 
+               other_college, events, group_members, contact_numbers, 
+               total_amount, payment_screenshot_url, payment_status, 
+               created_at
+        FROM registrations
+        ORDER BY created_at DESC
+        """
+        
+        cursor.execute(query)
+        registrations = cursor.fetchall()
+        
+        print(f"Retrieved {len(registrations)} registrations from database")
+        
+        cursor.close()
+        connection.close()
+        
+        return registrations
+        
+    except Error as e:
+        print(f"Error retrieving registrations: {e}")
+        traceback.print_exc()
+        return []
 
-# Initialize database
-init_db()
+def get_registration_by_id(registration_id):
+    """Get a specific registration by ID"""
+    try:
+        connection = get_db_connection()
+        if connection is None:
+            return None
+            
+        cursor = connection.cursor(dictionary=True)
+        
+        query = """
+        SELECT * FROM registrations WHERE id = %s
+        """
+        
+        cursor.execute(query, (registration_id,))
+        registration = cursor.fetchone()
+        
+        cursor.close()
+        connection.close()
+        
+        return registration
+        
+    except Error as e:
+        print(f"Error retrieving registration: {e}")
+        return None
+
+# Initialize database on startup
+print("Initializing database...")
+if init_db():
+    print("Database ready!")
+else:
+    print("Database initialization failed!")
 
 # ---------------- HELPERS ----------------
 def allowed_file(filename):
@@ -120,10 +272,8 @@ def allowed_file(filename):
 def upload_to_cloudinary(file, roll_no):
     """Upload file to Cloudinary and return the URL"""
     try:
-        # Create a unique public_id using roll number and timestamp
         public_id = f"zeal10/payments/{roll_no}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        # Upload to Cloudinary
         result = cloudinary.uploader.upload(
             file,
             public_id=public_id,
@@ -146,7 +296,6 @@ def parse_events_with_categories(form_data):
     print(f"Raw selected events: {selected_events}")
     print(f"All form keys: {list(form_data.keys())}")
     
-    # Build a map of event indices to their categories
     category_map = {}
     for key in form_data.keys():
         if key.startswith('category_'):
@@ -154,7 +303,6 @@ def parse_events_with_categories(form_data):
             category_map[event_idx] = form_data.get(key)
             print(f"Found category: {key} = {form_data.get(key)}")
     
-    # Match events with their categories
     for i, event in enumerate(selected_events):
         category_found = False
         for cat_idx, category in category_map.items():
@@ -217,7 +365,6 @@ def register():
         group_members = request.form.get("group_members", "")
         contact_numbers = request.form.get("contact_numbers")
         
-        # Parse events with categories
         events_list = parse_events_with_categories(request.form)
 
         session['form_data'] = {
@@ -237,6 +384,8 @@ def register():
                 print("No events selected!")
                 return render_template("register.html", 
                                      form_data=session.get('form_data', {}),
+                                     selected_events=session.get('selected_events', []),
+                                     events=EVENT_PRICES,
                                      error="Please select at least one event",
                                      banner_exists=os.path.exists('static/images/zeal_banner.jpeg'))
 
@@ -272,6 +421,7 @@ def register():
                 total=total,
                 form_data=session.get('form_data', {}),
                 selected_events=session.get('selected_events', []),
+                events=EVENT_PRICES,
                 banner_exists=os.path.exists('static/images/zeal_banner.jpeg')
             )
 
@@ -287,7 +437,6 @@ def register():
                 return "Invalid file format. Please upload PNG, JPG, or JPEG", 400
 
             try:
-                # Upload to Cloudinary
                 cloudinary_url = upload_to_cloudinary(screenshot, roll)
                 print(f"Screenshot uploaded to Cloudinary: {cloudinary_url}")
             except Exception as e:
@@ -308,7 +457,7 @@ def register():
                     "group_members": group_members,
                     "contact_numbers": contact_numbers,
                     "total_amount": total,
-                    "payment_screenshot_url": cloudinary_url,  # Store Cloudinary URL
+                    "payment_screenshot_url": cloudinary_url,
                     "payment_status": "Submitted"
                 }
                 
@@ -323,17 +472,18 @@ def register():
                                      registration_id=reg_id,
                                      form_data={},
                                      selected_events=[],
+                                     events=EVENT_PRICES,
                                      banner_exists=os.path.exists('static/images/zeal_banner.jpeg'))
             
             except Exception as e:
                 print(f"Database error: {e}")
-                import traceback
                 traceback.print_exc()
                 return f"Registration failed: {str(e)}", 500
 
     return render_template("register.html", 
                          form_data=session.get('form_data', {}),
                          selected_events=session.get('selected_events', []),
+                         events=EVENT_PRICES,
                          banner_exists=os.path.exists('static/images/zeal_banner.jpeg'))
 
 # ---------------- ADMIN ----------------
@@ -343,18 +493,9 @@ def admin():
         data = get_all_registrations()
         print(f"Displaying {len(data)} registrations on admin page")
         
-        # Convert created_at strings to datetime objects for template
-        for row in data:
-            if 'created_at' in row and isinstance(row['created_at'], str):
-                try:
-                    row['created_at'] = datetime.strptime(row['created_at'], '%Y-%m-%d %H:%M:%S')
-                except:
-                    row['created_at'] = None
-        
         return render_template("admin.html", data=data)
     except Exception as e:
         print(f"Error loading admin page: {e}")
-        import traceback
         traceback.print_exc()
         return f"Error loading admin page: {str(e)}", 500
 
@@ -423,31 +564,51 @@ def export_excel():
     
     except Exception as e:
         print(f"Error exporting data: {e}")
-        import traceback
         traceback.print_exc()
         return f"Error exporting data: {str(e)}", 500
 
 # ---------------- DEBUG ROUTE ----------------
 @app.route("/debug/db")
 def debug_db():
-    """Debug route to check database contents"""
+    """Debug route to check database status"""
     try:
-        db = read_db()
+        connection = get_db_connection()
+        if connection is None:
+            return {"error": "Cannot connect to database", "config": {k: v for k, v in DB_CONFIG.items() if k != 'password'}}, 500
+        
+        cursor = connection.cursor(dictionary=True)
+        
+        # Get table info
+        cursor.execute("SHOW TABLES")
+        tables = cursor.fetchall()
+        
+        # Get registration count
+        cursor.execute("SELECT COUNT(*) as count FROM registrations")
+        count_result = cursor.fetchone()
+        
+        # Get recent registrations
+        cursor.execute("SELECT * FROM registrations ORDER BY created_at DESC LIMIT 5")
+        recent = cursor.fetchall()
+        
+        cursor.close()
+        connection.close()
+        
         return {
-            "total_registrations": len(db.get("registrations", [])),
-            "last_id": db.get("last_id", 0),
-            "database_file_exists": os.path.exists(DB_FILE),
-            "database_path": os.path.abspath(DB_FILE),
-            "cloudinary_configured": bool(os.getenv('CLOUDINARY_CLOUD_NAME')),
-            "registrations": db.get("registrations", [])
+            "status": "connected",
+            "database": DB_CONFIG['database'],
+            "tables": tables,
+            "total_registrations": count_result['count'],
+            "recent_registrations": recent,
+            "cloudinary_configured": bool(os.getenv('CLOUDINARY_CLOUD_NAME'))
         }
     except Exception as e:
-        return {"error": str(e)}, 500
+        return {"error": str(e), "traceback": traceback.format_exc()}, 500
 
 # ---------------- START ----------------
 if __name__ == "__main__":
     print(f"Starting ZEAL 10.0 Registration System")
-    print(f"Database file: {os.path.abspath(DB_FILE)}")
+    print(f"MySQL Host: {DB_CONFIG['host']}")
+    print(f"MySQL Database: {DB_CONFIG['database']}")
     print(f"QR directory: {os.path.abspath(QR_DIR)}")
     print(f"Cloudinary configured: {bool(os.getenv('CLOUDINARY_CLOUD_NAME'))}")
     app.run(host="0.0.0.0", port=5000, debug=True)

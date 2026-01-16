@@ -277,311 +277,232 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; b
 </div>
 
 <script>
+/* =========================================================
+   EVENTS FROM BACKEND
+========================================================= */
+const backendEvents = {{ events | default({}) | tojson | safe }};
+const grouped = {};
+const simpleEvents = [];
+
+Object.entries(backendEvents).forEach(([name, price]) => {
+    if (name.includes(" - ")) {
+        const [parent, category] = name.split(" - ");
+        if (!grouped[parent]) grouped[parent] = [];
+        grouped[parent].push({ name: category, price });
+    } else {
+        simpleEvents.push({ name, price });
+    }
+});
+
 const events = [
-    {name:"Business Idea Pitching Contest (Case Cracker)", price:100},
-    {name:"Caselet Solving Competition", price:100},
-    {name:"Paper / Balloon Tower Making (Paper Peaks)", price:100},
-    {name:"Corporate Collage (Bizmosaic)", price:100},
-    {name:"Sales Pitching Contest (DealQuest)", price:100},
-    {name:"Turbo AI Challenge", price:100},
-    {name:"INNO Quest", price:100},
-    {name:"Robo Race", price:100},
-    {name:"CODING", price:100},
-    {name:"Clip Clash – REEL", price:100},
-    {name:"Quiz Competition", price:100},
-    {name:"Poster Making (Tech Theme)", price:100},
-    {name:"Rangoli Competition", price:100},
-    {name:"Cook without Fire", price:100},
-    {name:"Ad-Mad Show", price:100},
-    {name:"Eco-Fashion / Recycled Clothing Show", price:100},
-    {name:"T-Shirt Painting", price:100},
-    {name:"Eco-Voice Debate / GreenSpeak Debate", price:100},
-    {name:"Face Painting Competition", price:100},
-    {name:"BGMI", price:100},
-    {name:"Beat Boxing", price:100},
-    {name:"Band", price:500},
-    {name:"Dance Competition", price:null, categories: [
-        {name: "Solo", price: 100},
-        {name: "Duet", price: 200},
-        {name: "Group", price: 300}
-    ]},
-    {name:"Fashion Show Competition", price:null, categories: [
-        {name: "Solo", price: 100},
-        {name: "Duet", price: 200},
-        {name: "Group", price: 300}
-    ]},
-    {name:"Singing", price:null, categories: [
-        {name: "Solo", price: 100},
-        {name: "Duet", price: 200}
-    ]}
+    ...simpleEvents,
+    ...Object.keys(grouped).map(parent => ({
+        name: parent,
+        price: null,
+        categories: grouped[parent]
+    }))
 ];
 
-const selectedEventsFromServer = {{ selected_events | tojson | safe }};
+/* =========================================================
+   EVENT RENDERING
+========================================================= */
+const selectedEventsFromServer = {{ selected_events | default([]) | tojson | safe }};
 const container = document.getElementById('eventsContainer');
-let eventIndex = 0;
 
-events.forEach((event) => {
-    const currentEventIndex = eventIndex;
+events.forEach(event => {
     const card = document.createElement('div');
     card.className = 'event-card';
-    card.dataset.eventIndex = currentEventIndex;
-    card.dataset.eventName = event.name;
-    
+
     if (event.categories) {
         card.innerHTML = `
-            <input type="checkbox" name="events" id="event_${currentEventIndex}" value="${event.name}" data-has-categories="true" data-event-index="${currentEventIndex}">
-            <input type="hidden" class="event-checkbox-index" value="">
-            <label for="event_${currentEventIndex}" class="event-label">
+            <input type="checkbox" name="events" value="${event.name}" data-has-categories="true">
+            <label class="event-label">
                 <div class="checkbox-custom"></div>
                 <div class="event-info">
                     <div class="event-name">${event.name}</div>
                 </div>
             </label>
-            <div class="category-options" id="categories_${currentEventIndex}" style="display: none;">
-                ${event.categories.map((cat, catIndex) => `
-                    <label onclick="event.stopPropagation();">
-                        <input type="radio" class="category-radio" data-event-index="${currentEventIndex}" value="${cat.name}" data-price="${cat.price}" 
-                            ${catIndex === 0 ? 'checked' : ''} onclick="updateTotal()">
-                        <span style="color: #374151;">${cat.name} - <span style="color: #059669; font-weight: 600;">₹${cat.price}</span></span>
+            <div class="category-options" style="display:none;">
+                ${event.categories.map((cat,i)=>`
+                    <label>
+                        <input type="radio"
+                               name="category_${event.name.replace(/[^a-zA-Z0-9]/g,'_')}"
+                               value="${cat.name}"
+                               data-price="${cat.price}"
+                               ${i===0?'checked':''}>
+                        ${cat.name} – ₹${cat.price}
                     </label>
                 `).join('')}
             </div>
         `;
     } else {
         card.innerHTML = `
-            <input type="checkbox" name="events" id="event_${currentEventIndex}" value="${event.name}" data-price="${event.price}">
-            <label for="event_${currentEventIndex}" class="event-label">
+            <input type="checkbox" name="events" value="${event.name}" data-price="${event.price}">
+            <label class="event-label">
                 <div class="checkbox-custom"></div>
                 <div class="event-info">
                     <div class="event-name">${event.name}</div>
-                    <div class="event-price" id="price_${currentEventIndex}">₹${event.price}</div>
+                    <div class="event-price">₹${event.price}</div>
                 </div>
             </label>
         `;
     }
-    
-    card.addEventListener('click', function(e) {
-        if (e.target.type === 'radio' || e.target.closest('.category-options')) return;
-        
-        const checkbox = this.querySelector('input[type="checkbox"]');
-        const categoryOptions = this.querySelector('.category-options');
-        
-        checkbox.checked = !checkbox.checked;
-        updateEventSelection(this, checkbox.checked);
-        
-        if (categoryOptions) {
-            categoryOptions.style.display = checkbox.checked ? 'block' : 'none';
-            if (checkbox.checked) {
-                const firstRadio = categoryOptions.querySelector('input[type="radio"]');
-                if (firstRadio) {
-                    firstRadio.checked = true;
-                    updateRadioNames();
-                }
-            }
+
+    card.addEventListener('click', e => {
+        if (e.target.type === 'radio') {
+            updateTotal();
+            return;
         }
-        
+        const cb = card.querySelector('input[type="checkbox"]');
+        const catBox = card.querySelector('.category-options');
+
+        cb.checked = !cb.checked;
+        card.classList.toggle('selected', cb.checked);
+        if (catBox) catBox.style.display = cb.checked ? 'block' : 'none';
         updateTotal();
     });
-    
-    container.appendChild(card);
-    
-    // Restore selected events from server
-    if (selectedEventsFromServer && selectedEventsFromServer.length > 0) {
-        selectedEventsFromServer.forEach(selectedEvent => {
-            const eventParts = selectedEvent.split(' - ');
-            const eventName = eventParts[0];
-            if (event.name === eventName) {
-                const checkbox = card.querySelector('input[type="checkbox"]');
-                checkbox.checked = true;
-                updateEventSelection(card, true);
-                if (event.categories && eventParts.length > 1) {
-                    const categoryName = eventParts[1];
-                    const categoryOptions = card.querySelector('.category-options');
-                    if (categoryOptions) {
-                        categoryOptions.style.display = 'block';
-                        const radioToSelect = Array.from(card.querySelectorAll('input[type="radio"]')).find(r => r.value === categoryName);
-                        if (radioToSelect) radioToSelect.checked = true;
-                    }
-                }
-            }
-        });
-    }
-    
-    eventIndex++;
-});
 
-function updateRadioNames() {
-    const checkedBoxes = document.querySelectorAll('input[name="events"]:checked');
-    checkedBoxes.forEach((checkbox, checkboxIndex) => {
-        const card = checkbox.closest('.event-card');
-        if (card) {
-            const radios = card.querySelectorAll('.category-radio');
-            radios.forEach(radio => {
-                radio.name = `category_${checkboxIndex}`;
-            });
+    container.appendChild(card);
+
+    /* Restore selection */
+    selectedEventsFromServer.forEach(sel => {
+        const [ev, cat] = sel.split(" - ");
+        if (ev === event.name) {
+            const cb = card.querySelector('input[type="checkbox"]');
+            cb.checked = true;
+            card.classList.add('selected');
+            const box = card.querySelector('.category-options');
+            if (box && cat) {
+                box.style.display = 'block';
+                const r = [...box.querySelectorAll('input[type="radio"]')].find(x=>x.value===cat);
+                if (r) r.checked = true;
+            }
         }
     });
-}
-
-function updateEventSelection(card, isSelected) {
-    if (isSelected) {
-        card.classList.add('selected');
-    } else {
-        card.classList.remove('selected');
-    }
-}
-
-document.getElementById('college').addEventListener('change', function() {
-    const college = this.value;
-    const isMangalmay = college === 'Mangalmay Group of Institutions';
-    
-    document.getElementById('college_id_box').classList.toggle('hidden', !isMangalmay);
-    document.getElementById('other_college_box').classList.toggle('hidden', college !== 'Other');
-    
-    // Update required attribute for college_id
-    document.getElementById('college_id').required = isMangalmay;
-    document.getElementById('other_college').required = college === 'Other';
-    
-    updateTotal();
 });
 
+/* =========================================================
+   VALIDATION (MANDATORY FIELDS)
+========================================================= */
+function validateForm(beforeFinal=false) {
+
+    const requiredFields = [
+        student_name,
+        roll_no,
+        course,
+        college,
+        contact_numbers
+    ];
+
+    for (const field of requiredFields) {
+        if (!field.value.trim()) {
+            alert("⚠️ Please fill all mandatory fields!");
+            field.focus();
+            return false;
+        }
+    }
+
+    if (college.value === 'Mangalmay Group of Institutions' && !college_id.value.trim()) {
+        alert("⚠️ Please enter Mangalmay College ID!");
+        college_id.focus();
+        return false;
+    }
+
+    if (college.value === 'Other' && !other_college.value.trim()) {
+        alert("⚠️ Please enter college name!");
+        other_college.focus();
+        return false;
+    }
+
+    const selectedEvents = document.querySelectorAll('input[name="events"]:checked');
+    if (!selectedEvents.length) {
+        alert("⚠️ Please select at least one event!");
+        return false;
+    }
+
+    for (const cb of selectedEvents) {
+        if (cb.dataset.hasCategories) {
+            const card = cb.closest('.event-card');
+            if (!card.querySelector('input[type="radio"]:checked')) {
+                alert("⚠️ Please select category for all selected events!");
+                return false;
+            }
+        }
+    }
+
+    if (beforeFinal) {
+        if (!payment_screenshot.files[0]) {
+            alert("⚠️ Please upload payment screenshot!");
+            return false;
+        }
+
+        const file = payment_screenshot.files[0];
+        const size = file.size / 1024 / 1024;
+        if (size > 5) {
+            alert("⚠️ Screenshot must be under 5MB!");
+            return false;
+        }
+
+        if (!['image/png','image/jpeg','image/jpg'].includes(file.type)) {
+            alert("⚠️ Invalid image format!");
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/* =========================================================
+   TOTAL
+========================================================= */
 function updateTotal() {
     let total = 0;
-    const isMangalmay = document.getElementById('college').value === 'Mangalmay Group of Institutions';
-    
-    const allCards = document.querySelectorAll('.event-card');
-    allCards.forEach((card) => {
-        const checkbox = card.querySelector('input[type="checkbox"]');
-        if (!checkbox.checked) return;
-        
-        const hasCategories = checkbox.dataset.hasCategories === 'true';
-        const cardIndex = card.dataset.eventIndex;
-        
-        if (hasCategories) {
-            const selectedRadio = card.querySelector('input[type="radio"]:checked');
-            if (selectedRadio) {
-                let price = parseInt(selectedRadio.dataset.price);
-                if (isMangalmay) total += price / 2;
-                else total += price;
-            }
+    const isMGI = college.value === 'Mangalmay Group of Institutions';
+
+    document.querySelectorAll('.event-card').forEach(card => {
+        const cb = card.querySelector('input[type="checkbox"]');
+        if (!cb || !cb.checked) return;
+
+        if (cb.dataset.hasCategories) {
+            const r = card.querySelector('input[type="radio"]:checked');
+            if (!r) return;
+            let p = parseInt(r.dataset.price);
+            total += isMGI ? p/2 : p;
         } else {
-            const priceEl = document.getElementById(`price_${cardIndex}`);
-            let price = parseInt(checkbox.dataset.price);
-            if (isMangalmay) {
-                const discounted = price / 2;
-                priceEl.innerHTML = `₹${discounted} <span class="original">₹${price}</span>`;
-                priceEl.classList.add('discounted');
-                total += discounted;
-            } else {
-                priceEl.innerHTML = `₹${price}`;
-                priceEl.classList.remove('discounted');
-                total += price;
-            }
+            let p = parseInt(cb.dataset.price);
+            total += isMGI ? p/2 : p;
         }
     });
-    
-    document.getElementById('totalAmount').textContent = total;
-    const qrAmountEl = document.getElementById('qrAmount');
-    if (qrAmountEl) {
-        qrAmountEl.textContent = total;
-    }
+
+    totalAmount.textContent = total;
+    if (qrAmount) qrAmount.textContent = total;
 }
 
+/* =========================================================
+   QR & FINAL SUBMIT
+========================================================= */
 function generateQR() {
-    const selectedEvents = document.querySelectorAll('input[name="events"]:checked');
-    
-    if (selectedEvents.length === 0) {
-        alert('⚠️ Please select at least one event!');
-        return;
-    }
-    
-    const studentName = document.getElementById('student_name').value.trim();
-    const rollNo = document.getElementById('roll_no').value.trim();
-    const course = document.getElementById('course').value.trim();
-    const college = document.getElementById('college').value;
-    const contactNumbers = document.getElementById('contact_numbers').value.trim();
-    
-    if (!studentName || !rollNo || !course || !college || !contactNumbers) {
-        alert('⚠️ Please fill all required fields!');
-        return;
-    }
-    
-    if (college === 'Mangalmay Group of Institutions' && !document.getElementById('college_id').value.trim()) {
-        alert('⚠️ Please enter your Mangalmay College ID!');
-        return;
-    }
-    
-    if (college === 'Other' && !document.getElementById('other_college').value.trim()) {
-        alert('⚠️ Please enter your college name!');
-        return;
-    }
-    
-    // Show loading overlay
-    document.getElementById('loadingOverlay').classList.remove('hidden');
-    
-    updateRadioNames();
-    document.getElementById('stepInput').value = 'qr';
-    document.getElementById('registrationForm').submit();
+    if (!validateForm(false)) return;
+    stepInput.value = 'qr';
+    registrationForm.submit();
 }
 
 function submitFinalForm() {
-    const fileInput = document.getElementById('payment_screenshot');
-    
-    if (!fileInput.files[0]) {
-        alert('⚠️ Please upload payment screenshot!');
-        return false;
-    }
-    
-    // Validate file size (max 5MB)
-    const fileSize = fileInput.files[0].size / 1024 / 1024; // in MB
-    if (fileSize > 5) {
-        alert('⚠️ File size must be less than 5MB!');
-        return false;
-    }
-    
-    // Validate file type
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
-    if (!allowedTypes.includes(fileInput.files[0].type)) {
-        alert('⚠️ Please upload a valid image file (PNG, JPG, or JPEG)!');
-        return false;
-    }
-    
-    // Disable submit button to prevent double submission
-    const submitBtn = document.getElementById('submitBtn');
-    submitBtn.disabled = true;
-    submitBtn.textContent = '⏳ Submitting...';
-    
-    // Show loading overlay
-    document.getElementById('loadingOverlay').classList.remove('hidden');
-    
-    document.getElementById('stepInput').value = 'final';
-    document.getElementById('registrationForm').submit();
+    if (!validateForm(true)) return;
+    stepInput.value = 'final';
+    registrationForm.submit();
 }
 
-document.getElementById('payment_screenshot').addEventListener('change', function() {
-    const fileName = this.files[0]?.name;
-    if (fileName) {
-        document.getElementById('fileName').innerHTML = `✓ ${fileName}`;
-    }
+payment_screenshot.addEventListener('change', e => {
+    if (e.target.files[0]) fileName.innerHTML = `✓ ${e.target.files[0].name}`;
 });
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    updateTotal();
-    
-    // Animate event cards on load
-    const eventCards = document.querySelectorAll('.event-card');
-    eventCards.forEach((card, index) => {
-        card.style.opacity = '0';
-        card.style.transform = 'translateY(20px)';
-        setTimeout(() => {
-            card.style.transition = 'all 0.3s ease';
-            card.style.opacity = '1';
-            card.style.transform = 'translateY(0)';
-        }, index * 30);
-    });
-});
+college.addEventListener('change', updateTotal);
+document.addEventListener('DOMContentLoaded', updateTotal);
 </script>
+
+
+
 
 </body>
 </html>
