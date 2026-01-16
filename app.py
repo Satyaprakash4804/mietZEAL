@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, send_from_directory, session, send_file
+from flask import Flask, render_template, request, send_from_directory, session, send_file, redirect
 import json
 import qrcode
 import os
@@ -6,17 +6,28 @@ from werkzeug.utils import secure_filename
 import pandas as pd
 from datetime import datetime
 from io import BytesIO
+import cloudinary
+import cloudinary.uploader
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = "zeal10_secret_key_2025"
 
+# ---------------- CLOUDINARY CONFIG ----------------
+cloudinary.config(
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.getenv('CLOUDINARY_API_KEY'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET')
+)
+
 # ---------------- CONFIG ----------------
 DB_FILE = "database.json"
 QR_DIR = "static/qr"
-UPLOAD_DIR = "uploads/payments"
 
 os.makedirs(QR_DIR, exist_ok=True)
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
@@ -106,6 +117,27 @@ init_db()
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def upload_to_cloudinary(file, roll_no):
+    """Upload file to Cloudinary and return the URL"""
+    try:
+        # Create a unique public_id using roll number and timestamp
+        public_id = f"zeal10/payments/{roll_no}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        # Upload to Cloudinary
+        result = cloudinary.uploader.upload(
+            file,
+            public_id=public_id,
+            folder="zeal10/payments",
+            resource_type="image",
+            overwrite=True
+        )
+        
+        print(f"File uploaded to Cloudinary: {result['secure_url']}")
+        return result['secure_url']
+    except Exception as e:
+        print(f"Cloudinary upload error: {e}")
+        raise
+
 def parse_events_with_categories(form_data):
     """Parse events and their categories from form data"""
     selected_events = form_data.getlist("events")
@@ -124,16 +156,11 @@ def parse_events_with_categories(form_data):
     
     # Match events with their categories
     for i, event in enumerate(selected_events):
-        # Try to find category by matching index
         category_found = False
         for cat_idx, category in category_map.items():
-            # Check if this category belongs to this event
-            # The category index should match the checkbox index
             checkbox_indices = [j for j, e in enumerate(selected_events) if e == event]
             if str(cat_idx) in [str(idx) for idx in range(len(form_data.getlist("events")))]:
-                # Get the actual event index from the form
                 all_event_checkboxes = [(k, v) for k, v in form_data.items() if k == 'events']
-                # Use a simpler approach: just check all category fields
                 test_key = f"category_{i}"
                 if test_key in category_map:
                     event_with_category = f"{event} - {category_map[test_key]}"
@@ -143,16 +170,14 @@ def parse_events_with_categories(form_data):
                     break
         
         if not category_found:
-            # Check if event name suggests it should have categories
             if event in ["Dance Competition", "Fashion Show Competition", "Singing"]:
-                # Try to find any category that might match
                 for cat_idx, category in category_map.items():
-                    if category:  # If we have a category, use it
+                    if category:
                         event_with_category = f"{event} - {category}"
                         events_list.append(event_with_category)
                         print(f"Event with category (fallback): {event_with_category}")
                         category_found = True
-                        del category_map[cat_idx]  # Remove used category
+                        del category_map[cat_idx]
                         break
             
             if not category_found:
@@ -261,10 +286,13 @@ def register():
                 print(f"Invalid file format: {screenshot.filename}")
                 return "Invalid file format. Please upload PNG, JPG, or JPEG", 400
 
-            screenshot_name = secure_filename(f"{roll}_{screenshot.filename}")
-            screenshot_path = os.path.join(UPLOAD_DIR, screenshot_name)
-            screenshot.save(screenshot_path)
-            print(f"Screenshot saved: {screenshot_name}")
+            try:
+                # Upload to Cloudinary
+                cloudinary_url = upload_to_cloudinary(screenshot, roll)
+                print(f"Screenshot uploaded to Cloudinary: {cloudinary_url}")
+            except Exception as e:
+                print(f"Cloudinary upload failed: {e}")
+                return f"Failed to upload screenshot: {str(e)}", 500
 
             total = calculate_total_from_events(events_list, college)
 
@@ -280,7 +308,7 @@ def register():
                     "group_members": group_members,
                     "contact_numbers": contact_numbers,
                     "total_amount": total,
-                    "payment_screenshot": screenshot_name,
+                    "payment_screenshot_url": cloudinary_url,  # Store Cloudinary URL
                     "payment_status": "Submitted"
                 }
                 
@@ -338,39 +366,32 @@ def export_excel():
         print(f"Exporting {len(data)} registrations")
 
         if not data:
-            # Create empty DataFrame with column headers
             df = pd.DataFrame(columns=[
                 'id', 'student_name', 'roll_no', 'course', 'college', 
                 'college_id', 'other_college', 'events', 'group_members', 
-                'contact_numbers', 'total_amount', 'payment_screenshot', 
+                'contact_numbers', 'total_amount', 'payment_screenshot_url', 
                 'payment_status', 'created_at'
             ])
         else:
-            # Create DataFrame
             df = pd.DataFrame(data)
             
-            # Reorder columns for better readability
             column_order = [
                 'id', 'student_name', 'roll_no', 'course', 'college', 
                 'college_id', 'other_college', 'events', 'group_members', 
                 'contact_numbers', 'total_amount', 'payment_status',
-                'payment_screenshot', 'created_at'
+                'payment_screenshot_url', 'created_at'
             ]
             
-            # Only include columns that exist in the dataframe
             column_order = [col for col in column_order if col in df.columns]
             df = df[column_order]
         
-            # Format created_at column
             if 'created_at' in df.columns and not df.empty:
                 df['created_at'] = pd.to_datetime(df['created_at']).dt.strftime('%d-%m-%Y %H:%M:%S')
         
-        # Create Excel file in memory
         output = BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name='Registrations')
             
-            # Auto-adjust column widths
             worksheet = writer.sheets['Registrations']
             for idx, col in enumerate(df.columns):
                 if not df.empty:
@@ -381,7 +402,6 @@ def export_excel():
                 else:
                     max_length = len(str(col)) + 2
                     
-                # Excel column letters
                 if idx < 26:
                     col_letter = chr(65 + idx)
                 else:
@@ -407,11 +427,6 @@ def export_excel():
         traceback.print_exc()
         return f"Error exporting data: {str(e)}", 500
 
-# ---------------- VIEW PAYMENT SCREENSHOT ----------------
-@app.route("/uploads/payments/<filename>")
-def view_payment(filename):
-    return send_from_directory(UPLOAD_DIR, filename)
-
 # ---------------- DEBUG ROUTE ----------------
 @app.route("/debug/db")
 def debug_db():
@@ -423,6 +438,7 @@ def debug_db():
             "last_id": db.get("last_id", 0),
             "database_file_exists": os.path.exists(DB_FILE),
             "database_path": os.path.abspath(DB_FILE),
+            "cloudinary_configured": bool(os.getenv('CLOUDINARY_CLOUD_NAME')),
             "registrations": db.get("registrations", [])
         }
     except Exception as e:
@@ -432,6 +448,6 @@ def debug_db():
 if __name__ == "__main__":
     print(f"Starting ZEAL 10.0 Registration System")
     print(f"Database file: {os.path.abspath(DB_FILE)}")
-    print(f"Upload directory: {os.path.abspath(UPLOAD_DIR)}")
     print(f"QR directory: {os.path.abspath(QR_DIR)}")
+    print(f"Cloudinary configured: {bool(os.getenv('CLOUDINARY_CLOUD_NAME'))}")
     app.run(host="0.0.0.0", port=5000, debug=True)

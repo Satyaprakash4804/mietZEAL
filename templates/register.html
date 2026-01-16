@@ -4,24 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ZEAL 10.0 Registration | Mangalmay Group of Institutions</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; line-height: 1.6; }
 .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; animation: slideUp 0.6s ease-out; }
 @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-.header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center; color: white; }
-.header h1 { font-size: clamp(1.8rem, 5vw, 2.5rem); font-weight: 700; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+.header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center; color: white; position: relative; }
+.header h1 { font-size: clamp(1.8rem, 5vw, 2.5rem); font-weight: 700; margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; gap: 10px; }
 .header p { font-size: clamp(0.9rem, 2.5vw, 1.1rem); opacity: 0.95; font-weight: 300; }
+.header-subtitle { font-size: 0.9rem; margin-top: 5px; opacity: 0.9; }
 .banner-img { width: 100%; max-height: 650px; object-fit: cover; display: block; }
 .banner-img.hidden { display: none; }
 .form-content { padding: 30px; }
-.notice { background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); padding: 20px; border-radius: 12px; margin-bottom: 30px; border-left: 4px solid #667eea; }
-.notice-title { font-weight: 700; color: #4c1d95; margin-bottom: 8px; font-size: 1.1rem; }
-.notice p { color: #5b21b6; font-size: 0.95rem; margin: 4px 0; }
+.notice { background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); padding: 20px; border-radius: 12px; margin-bottom: 30px; border-left: 4px solid #667eea; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1); }
+.notice-title { font-weight: 700; color: #4c1d95; margin-bottom: 8px; font-size: 1.1rem; display: flex; align-items: center; gap: 8px; }
+.notice p { color: #5b21b6; font-size: 0.95rem; margin: 4px 0; padding-left: 20px; }
 .notice strong { color: #4c1d95; }
-.form-section { margin-bottom: 30px; }
-.section-title { font-size: 1.3rem; font-weight: 700; color: #1f2937; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e5e7eb; }
+.form-section { margin-bottom: 30px; animation: fadeIn 0.5s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.section-title { font-size: 1.3rem; font-weight: 700; color: #1f2937; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #e5e7eb; display: flex; align-items: center; gap: 10px; }
 .form-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
 @media (min-width: 768px) { .form-grid.two-col { grid-template-columns: 1fr 1fr; } }
 .form-group { display: flex; flex-direction: column; }
@@ -32,7 +33,7 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; b
 .events-container { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 15px; }
 @media (min-width: 640px) { .events-container { grid-template-columns: repeat(2, 1fr); } }
 .event-card { background: #f9fafb; border: 2px solid #e5e7eb; border-radius: 10px; padding: 14px; transition: all 0.3s ease; cursor: pointer; position: relative; user-select: none; }
-.event-card:hover { border-color: #667eea; background: #f3f4f6; transform: translateY(-2px); }
+.event-card:hover { border-color: #667eea; background: #f3f4f6; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15); }
 .event-card.selected { background: #ede9fe; border-color: #667eea; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2); }
 .event-card input[type="checkbox"] { display: none; }
 .event-label { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; pointer-events: none; }
@@ -47,33 +48,33 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; b
 .category-options { margin-top: 12px; padding-left: 34px; }
 .category-options label { display: flex; align-items: center; gap: 8px; margin: 8px 0; cursor: pointer; font-size: 0.9rem; font-weight: normal; }
 .category-options input[type="radio"] { width: 18px; height: 18px; cursor: pointer; accent-color: #667eea; }
-.total-section { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 25px; border-radius: 12px; margin: 25px 0; text-align: center; }
-.total-label { font-size: 1rem; color: #065f46; font-weight: 600; margin-bottom: 8px; }
+.total-section { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 25px; border-radius: 12px; margin: 25px 0; text-align: center; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2); }
+.total-label { font-size: 1rem; color: #065f46; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
 .total-amount { font-size: 2.5rem; font-weight: 800; color: #047857; }
-.qr-section { background: #f9fafb; padding: 30px; border-radius: 12px; margin-top: 25px; text-align: center; border: 2px dashed #d1d5db; }
-.qr-section h3 { color: #1f2937; margin-bottom: 20px; font-size: 1.4rem; }
-.qr-container { width: 260px; height: 260px; background: white; margin: 20px auto; border-radius: 12px; border: 2px solid #e5e7eb; display: flex; align-items: center; justify-content: center; padding: 15px; }
+.qr-section { background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%); padding: 30px; border-radius: 12px; margin-top: 25px; text-align: center; border: 2px dashed #d1d5db; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.qr-section h3 { color: #1f2937; margin-bottom: 20px; font-size: 1.4rem; font-weight: 700; }
+.qr-container { width: 260px; height: 260px; background: white; margin: 20px auto; border-radius: 12px; border: 2px solid #e5e7eb; display: flex; align-items: center; justify-content: center; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
 .qr-container img { width: 100% !important; height: 100% !important; object-fit: contain !important; display: block; }
 .qr-container canvas { display: block !important; margin: 0 auto !important; }
 .upload-area { margin-top: 25px; }
 .file-input-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; max-width: 400px; margin: 15px auto 0; }
 .file-input-label { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 14px 24px; background: #f3f4f6; border: 2px dashed #9ca3af; border-radius: 10px; cursor: pointer; transition: all 0.3s ease; font-weight: 600; color: #4b5563; }
-.file-input-label:hover { background: #e5e7eb; border-color: #667eea; }
+.file-input-label:hover { background: #e5e7eb; border-color: #667eea; transform: translateY(-2px); }
 .file-input-wrapper input[type="file"] { position: absolute; left: -9999px; }
 .file-name { margin-top: 10px; color: #059669; font-weight: 600; font-size: 0.9rem; }
 .btn { width: 100%; padding: 16px 32px; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: all 0.3s ease; margin-top: 25px; text-transform: uppercase; letter-spacing: 0.5px; }
 .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
 .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5); }
 .btn-primary:active { transform: translateY(0); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
 .hidden { display: none !important; }
 .info-box { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 8px; margin-top: 15px; }
-.info-box p { color: #92400e; font-size: 0.9rem; }
+.info-box p { color: #92400e; font-size: 0.9rem; line-height: 1.6; }
 .success-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; animation: fadeIn 0.3s ease-out; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .success-content { background: white; padding: 50px 40px; border-radius: 25px; text-align: center; max-width: 500px; width: 100%; animation: scaleIn 0.4s ease-out; box-shadow: 0 25px 50px rgba(0,0,0,0.3); }
 @keyframes scaleIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
-.success-icon { width: 100px; height: 100px; margin: 0 auto 25px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 4rem; animation: bounce 0.6s ease-out 0.2s; }
+.success-icon { width: 100px; height: 100px; margin: 0 auto 25px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 4rem; animation: bounce 0.6s ease-out 0.2s; box-shadow: 0 10px 25px rgba(5, 150, 105, 0.3); }
 @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
 .success-content h2 { color: #059669; margin-bottom: 15px; font-size: 2rem; font-weight: 800; }
 .success-content p { color: #6b7280; margin-bottom: 15px; font-size: 1.05rem; line-height: 1.6; }
@@ -83,6 +84,11 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; b
 .success-buttons .btn { margin-top: 0; flex: 1; }
 .btn-secondary { background: #e5e7eb; color: #1f2937; }
 .btn-secondary:hover { background: #d1d5db; }
+.error-message { background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%); color: #991b1b; padding: 15px 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #dc2626; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.discount-badge { background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; margin-left: 8px; text-transform: uppercase; letter-spacing: 0.3px; display: inline-block; }
+.loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 999; }
+.loading-spinner { width: 60px; height: 60px; border: 4px solid #f3f4f6; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 @media (max-width: 640px) { .form-content { padding: 20px; } .header { padding: 30px 20px; } .total-amount { font-size: 2rem; } .qr-container { width: 220px; height: 220px; } }
 @media (max-width: 480px) { .success-content { padding: 40px 25px; } .success-icon { width: 80px; height: 80px; font-size: 3rem; } .success-content h2 { font-size: 1.5rem; } .success-buttons { flex-direction: column; } }
 </style>
@@ -96,10 +102,13 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; b
         <h2>Registration Successful! 🎉</h2>
         <p>Your registration for ZEAL 10.0 has been submitted successfully.</p>
         <div class="success-details">
-            <p>📋 Registration ID: #{{ registration_id }}</p>
+            <p>📋 Registration ID: <strong>#{{ registration_id }}</strong></p>
             <p>📧 You will receive a confirmation email shortly</p>
             <p>✅ Payment verification is in progress</p>
         </div>
+        <p style="font-size: 0.9rem; color: #9ca3af; margin-top: 10px;">
+            Thank you for registering! We'll review your payment and confirm your participation soon.
+        </p>
         <div class="success-buttons">
             <button class="btn btn-primary" onclick="window.location.href='/'">Register Another</button>
         </div>
@@ -111,28 +120,36 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; b
     <div class="header">
         <h1>🎯 ZEAL 10.0</h1>
         <p>Mangalmay Group of Institutions</p>
-        <p style="font-size: 0.9rem; margin-top: 5px;">Student Competition Registration</p>
+        <p class="header-subtitle">Student Competition Registration</p>
     </div>
     
-    <!-- Banner Image - Will show only if image exists -->
+    {% if banner_exists %}
     <img src="{{ url_for('static', filename='images/zeal_banner.jpeg') }}" 
          alt="ZEAL 10.0 Banner" 
          class="banner-img" 
-         id="bannerImage"
          onerror="this.style.display='none'">
+    {% endif %}
     
     <div class="form-content">
+        {% if error %}
+        <div class="error-message">
+            <span>⚠️</span>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
+
         <div class="notice">
             <div class="notice-title">📢 Important Information</div>
             <p>✓ Students may select <strong>more than one event</strong></p>
             <p>✓ Complete payment using the generated QR code</p>
+            <p>✓ Upload payment screenshot after successful payment</p>
         </div>
 
         <form method="POST" enctype="multipart/form-data" id="registrationForm">
             <input type="hidden" name="step" id="stepInput" value="form">
 
             <div class="form-section">
-                <h2 class="section-title">Personal Information</h2>
+                <h2 class="section-title">👤 Personal Information</h2>
                 <div class="form-grid two-col">
                     <div class="form-group">
                         <label class="required">Student Name</label>
@@ -150,7 +167,7 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; b
             </div>
 
             <div class="form-section">
-                <h2 class="section-title">College Information</h2>
+                <h2 class="section-title">🏫 College Information</h2>
                 <div class="form-group">
                     <label class="required">Select College</label>
                     <select name="college" id="college" required>
@@ -179,32 +196,33 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; b
 
                 <div id="college_id_box" class="form-group {% if form_data.get('college') != 'Mangalmay Group of Institutions' %}hidden{% endif %}" style="margin-top: 20px;">
                     <label class="required">Mangalmay College ID</label>
-                    <input type="text" name="college_id" id="college_id" value="{{ form_data.get('college_id', '') }}">
+                    <input type="text" name="college_id" id="college_id" value="{{ form_data.get('college_id', '') }}" placeholder="Enter your Mangalmay ID">
+                    <div class="discount-badge" style="margin-top: 10px; display: inline-block;">🎉 50% Discount Applied</div>
                 </div>
 
                 <div id="other_college_box" class="form-group {% if form_data.get('college') != 'Other' %}hidden{% endif %}" style="margin-top: 20px;">
                     <label class="required">Enter College Name</label>
-                    <input type="text" name="other_college" id="other_college" value="{{ form_data.get('other_college', '') }}">
+                    <input type="text" name="other_college" id="other_college" value="{{ form_data.get('other_college', '') }}" placeholder="Type your college name">
                 </div>
             </div>
 
             <div class="form-section">
-                <h2 class="section-title">Event Selection</h2>
+                <h2 class="section-title">🎪 Event Selection</h2>
                 <div class="events-container" id="eventsContainer"></div>
             </div>
 
             <div class="form-section">
-                <h2 class="section-title">Additional Information</h2>
+                <h2 class="section-title">ℹ️ Additional Information</h2>
                 <div class="form-group">
-                    <label>Group Members</label>
-                    <input type="text" name="group_members" id="group_members" value="{{ form_data.get('group_members', '') }}" placeholder="Enter names separated by commas (if applicable)">
+                    <label>Group Members (Optional)</label>
+                    <input type="text" name="group_members" id="group_members" value="{{ form_data.get('group_members', '') }}" placeholder="Enter names separated by commas (for group events)">
                 </div>
                 <div class="form-group" style="margin-top: 20px;">
                     <label class="required">Contact Numbers</label>
                     <input type="text" name="contact_numbers" id="contact_numbers" value="{{ form_data.get('contact_numbers', '') }}" placeholder="Enter phone numbers separated by commas" required>
                 </div>
                 <div class="info-box">
-                    <p><strong>Note:</strong> For group events, please provide all team member names and contact numbers.</p>
+                    <p><strong>💡 Note:</strong> For group events, please provide all team member names and contact numbers separated by commas.</p>
                 </div>
             </div>
 
@@ -214,11 +232,11 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; b
             </div>
 
             <button type="button" class="btn btn-primary" id="generateQrBtn" onclick="generateQR()">
-                Generate Payment QR Code
+                🔐 Generate Payment QR Code
             </button>
 
             <div id="qrSection" class="qr-section {% if not qr %}hidden{% endif %}">
-                <h3>Scan & Pay with Any UPI App</h3>
+                <h3>💳 Scan & Pay with Any UPI App</h3>
                 <div class="qr-container" id="qrContainer">
                     {% if qr %}
                     <img src="{{ url_for('static', filename='qr/' + qr) }}" 
@@ -228,14 +246,14 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; b
                     {% endif %}
                 </div>
                 <p style="color: #059669; font-weight: 700; font-size: 1.2rem; margin: 15px 0;">
-                    Amount: ₹<span id="qrAmount">{{ total if total else 0 }}</span>
+                    💰 Amount: ₹<span id="qrAmount">{{ total if total else 0 }}</span>
                 </p>
-                <p style="color: #6b7280; font-size: 0.9rem;">
-                    UPI ID: 9871223900@ptaxis
+                <p style="color: #6b7280; font-size: 0.9rem; font-weight: 600;">
+                    UPI ID: <span style="font-family: 'Courier New', monospace; color: #059669;">9871223900@ptaxis</span>
                 </p>
 
                 <div class="upload-area">
-                    <label style="font-weight: 600; color: #1f2937;">Upload Payment Screenshot</label>
+                    <label style="font-weight: 600; color: #1f2937; font-size: 1rem;">📸 Upload Payment Screenshot</label>
                     <div class="file-input-wrapper">
                         <label for="payment_screenshot" class="file-input-label">
                             <span>📎</span>
@@ -246,12 +264,16 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; b
                     <div id="fileName" class="file-name"></div>
                 </div>
 
-                <button type="button" class="btn btn-primary" onclick="submitFinalForm()">
-                    Submit Registration
+                <button type="button" class="btn btn-primary" onclick="submitFinalForm()" id="submitBtn">
+                    ✅ Submit Registration
                 </button>
             </div>
         </form>
     </div>
+</div>
+
+<div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="loading-spinner"></div>
 </div>
 
 <script>
@@ -363,7 +385,7 @@ events.forEach((event) => {
     
     container.appendChild(card);
     
-    // Restore selected events
+    // Restore selected events from server
     if (selectedEventsFromServer && selectedEventsFromServer.length > 0) {
         selectedEventsFromServer.forEach(selectedEvent => {
             const eventParts = selectedEvent.split(' - ');
@@ -411,8 +433,15 @@ function updateEventSelection(card, isSelected) {
 
 document.getElementById('college').addEventListener('change', function() {
     const college = this.value;
-    document.getElementById('college_id_box').classList.toggle('hidden', college !== 'Mangalmay Group of Institutions');
+    const isMangalmay = college === 'Mangalmay Group of Institutions';
+    
+    document.getElementById('college_id_box').classList.toggle('hidden', !isMangalmay);
     document.getElementById('other_college_box').classList.toggle('hidden', college !== 'Other');
+    
+    // Update required attribute for college_id
+    document.getElementById('college_id').required = isMangalmay;
+    document.getElementById('other_college').required = college === 'Other';
+    
     updateTotal();
 });
 
@@ -452,35 +481,43 @@ function updateTotal() {
     });
     
     document.getElementById('totalAmount').textContent = total;
+    const qrAmountEl = document.getElementById('qrAmount');
+    if (qrAmountEl) {
+        qrAmountEl.textContent = total;
+    }
 }
 
 function generateQR() {
-    const selectedEvents = document.querySelectorAll('input[type="checkbox"]:checked');
+    const selectedEvents = document.querySelectorAll('input[name="events"]:checked');
     
     if (selectedEvents.length === 0) {
         alert('⚠️ Please select at least one event!');
         return;
     }
     
-    if (!document.getElementById('student_name').value || 
-        !document.getElementById('roll_no').value || 
-        !document.getElementById('course').value || 
-        !document.getElementById('college').value ||
-        !document.getElementById('contact_numbers').value) {
+    const studentName = document.getElementById('student_name').value.trim();
+    const rollNo = document.getElementById('roll_no').value.trim();
+    const course = document.getElementById('course').value.trim();
+    const college = document.getElementById('college').value;
+    const contactNumbers = document.getElementById('contact_numbers').value.trim();
+    
+    if (!studentName || !rollNo || !course || !college || !contactNumbers) {
         alert('⚠️ Please fill all required fields!');
         return;
     }
     
-    const college = document.getElementById('college').value;
-    if (college === 'Mangalmay Group of Institutions' && !document.getElementById('college_id').value) {
+    if (college === 'Mangalmay Group of Institutions' && !document.getElementById('college_id').value.trim()) {
         alert('⚠️ Please enter your Mangalmay College ID!');
         return;
     }
     
-    if (college === 'Other' && !document.getElementById('other_college').value) {
+    if (college === 'Other' && !document.getElementById('other_college').value.trim()) {
         alert('⚠️ Please enter your college name!');
         return;
     }
+    
+    // Show loading overlay
+    document.getElementById('loadingOverlay').classList.remove('hidden');
     
     updateRadioNames();
     document.getElementById('stepInput').value = 'qr';
@@ -488,10 +525,34 @@ function generateQR() {
 }
 
 function submitFinalForm() {
-    if (!document.getElementById('payment_screenshot').files[0]) {
+    const fileInput = document.getElementById('payment_screenshot');
+    
+    if (!fileInput.files[0]) {
         alert('⚠️ Please upload payment screenshot!');
         return false;
     }
+    
+    // Validate file size (max 5MB)
+    const fileSize = fileInput.files[0].size / 1024 / 1024; // in MB
+    if (fileSize > 5) {
+        alert('⚠️ File size must be less than 5MB!');
+        return false;
+    }
+    
+    // Validate file type
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowedTypes.includes(fileInput.files[0].type)) {
+        alert('⚠️ Please upload a valid image file (PNG, JPG, or JPEG)!');
+        return false;
+    }
+    
+    // Disable submit button to prevent double submission
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '⏳ Submitting...';
+    
+    // Show loading overlay
+    document.getElementById('loadingOverlay').classList.remove('hidden');
     
     document.getElementById('stepInput').value = 'final';
     document.getElementById('registrationForm').submit();
@@ -500,11 +561,26 @@ function submitFinalForm() {
 document.getElementById('payment_screenshot').addEventListener('change', function() {
     const fileName = this.files[0]?.name;
     if (fileName) {
-        document.getElementById('fileName').textContent = `✓ ${fileName}`;
+        document.getElementById('fileName').innerHTML = `✓ ${fileName}`;
     }
 });
 
-updateTotal();
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateTotal();
+    
+    // Animate event cards on load
+    const eventCards = document.querySelectorAll('.event-card');
+    eventCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+            card.style.transition = 'all 0.3s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 30);
+    });
+});
 </script>
 
 </body>

@@ -211,7 +211,7 @@ tbody tr:last-child td { border-bottom: none; }
                             </span>
                         </td>
                         <td>
-                            <a href="{{ url_for('view_payment', filename=row.payment_screenshot) }}" 
+                            <a href="{{ row.payment_screenshot_url }}" 
                                target="_blank" class="view-btn">👁️ View</a>
                         </td>
                         <td class="date-cell">
