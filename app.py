@@ -353,12 +353,13 @@ def calculate_total_from_events(events_list, college):
     return total
 
 # ---------------- ROUTES ----------------
+# ---------------- ROUTES ----------------
 @app.route("/", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
         step = request.form.get("step")
         print(f"Processing step: {step}")
-        
+
         name = request.form.get("student_name")
         roll = request.form.get("roll_no")
         course = request.form.get("course")
@@ -367,7 +368,7 @@ def register():
         other_college = request.form.get("other_college", "")
         group_members = request.form.get("group_members", "")
         contact_numbers = request.form.get("contact_numbers")
-        
+
         events_list = parse_events_with_categories(request.form)
 
         session['form_data'] = {
@@ -382,21 +383,35 @@ def register():
         }
         session['selected_events'] = events_list
 
+        # ================= DUPLICATE CHECK (COMMON) =================
+        if step in ["qr", "final"]:
+            if is_already_registered(name, roll):
+                return render_template(
+                    "register.html",
+                    error="This Name and Roll Number are already registered.",
+                    form_data=session.get('form_data', {}),
+                    selected_events=session.get('selected_events', []),
+                    events=EVENT_PRICES,
+                    banner_exists=os.path.exists('static/images/zeal_banner.jpeg')
+                )
+
+        # ================= STEP : QR =================
         if step == "qr":
             if not events_list:
-                print("No events selected!")
-                return render_template("register.html", 
-                                     form_data=session.get('form_data', {}),
-                                     selected_events=session.get('selected_events', []),
-                                     events=EVENT_PRICES,
-                                     error="Please select at least one event",
-                                     banner_exists=os.path.exists('static/images/zeal_banner.jpeg'))
+                return render_template(
+                    "register.html",
+                    error="Please select at least one event",
+                    form_data=session.get('form_data', {}),
+                    selected_events=session.get('selected_events', []),
+                    events=EVENT_PRICES,
+                    banner_exists=os.path.exists('static/images/zeal_banner.jpeg')
+                )
 
             total = calculate_total_from_events(events_list, college)
 
             upi_link = (
                 f"upi://pay?"
-                f"pa=9871223900@ptaxis&"
+                f"pa=mangalmayinstituteof.69356291@hdfcbank&"
                 f"pn=ZEAL10&"
                 f"am={total}&"
                 f"cu=INR"
@@ -404,7 +419,7 @@ def register():
 
             qr_file = f"{roll}_qr.png"
             qr_path = os.path.join(QR_DIR, qr_file)
-            
+
             qr = qrcode.QRCode(
                 version=1,
                 error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -415,8 +430,8 @@ def register():
             qr.make(fit=True)
             img = qr.make_image(fill_color="black", back_color="white")
             img.save(qr_path)
-            
-            print(f"QR code generated: {qr_file} for amount: ₹{total}")
+
+            print(f"QR generated: {qr_file} | Amount: ₹{total}")
 
             return render_template(
                 "register.html",
@@ -428,66 +443,100 @@ def register():
                 banner_exists=os.path.exists('static/images/zeal_banner.jpeg')
             )
 
+        # ================= STEP : FINAL =================
         if step == "final":
             screenshot = request.files.get("payment_screenshot")
-            
+
             if not screenshot or screenshot.filename == '':
-                print("No screenshot uploaded!")
-                return "Payment screenshot required", 400
-                
+                return render_template(
+                    "register.html",
+                    error="Payment screenshot is required.",
+                    form_data=session.get('form_data', {}),
+                    selected_events=session.get('selected_events', []),
+                    events=EVENT_PRICES,
+                    banner_exists=os.path.exists('static/images/zeal_banner.jpeg')
+                )
+
             if not allowed_file(screenshot.filename):
-                print(f"Invalid file format: {screenshot.filename}")
-                return "Invalid file format. Please upload PNG, JPG, or JPEG", 400
+                return render_template(
+                    "register.html",
+                    error="Invalid file format. Upload PNG, JPG or JPEG only.",
+                    form_data=session.get('form_data', {}),
+                    selected_events=session.get('selected_events', []),
+                    events=EVENT_PRICES,
+                    banner_exists=os.path.exists('static/images/zeal_banner.jpeg')
+                )
 
-            try:
-                cloudinary_url = upload_to_cloudinary(screenshot, roll)
-                print(f"Screenshot uploaded to Cloudinary: {cloudinary_url}")
-            except Exception as e:
-                print(f"Cloudinary upload failed: {e}")
-                return f"Failed to upload screenshot: {str(e)}", 500
-
+            cloudinary_url = upload_to_cloudinary(screenshot, roll)
             total = calculate_total_from_events(events_list, college)
 
-            try:
-                registration_data = {
-                    "student_name": name,
-                    "roll_no": roll,
-                    "course": course,
-                    "college": college,
-                    "college_id": college_id,
-                    "other_college": other_college,
-                    "events": ", ".join(events_list),
-                    "group_members": group_members,
-                    "contact_numbers": contact_numbers,
-                    "total_amount": total,
-                    "payment_screenshot_url": cloudinary_url,
-                    "payment_status": "Submitted"
-                }
-                
-                reg_id = add_registration(registration_data)
-                print(f"Registration completed with ID: {reg_id}")
-                
-                session.pop('form_data', None)
-                session.pop('selected_events', None)
-                
-                return render_template("register.html", 
-                                     success=True,
-                                     registration_id=reg_id,
-                                     form_data={},
-                                     selected_events=[],
-                                     events=EVENT_PRICES,
-                                     banner_exists=os.path.exists('static/images/zeal_banner.jpeg'))
-            
-            except Exception as e:
-                print(f"Database error: {e}")
-                traceback.print_exc()
-                return f"Registration failed: {str(e)}", 500
+            registration_data = {
+                "student_name": name,
+                "roll_no": roll,
+                "course": course,
+                "college": college,
+                "college_id": college_id,
+                "other_college": other_college,
+                "events": ", ".join(events_list),
+                "group_members": group_members,
+                "contact_numbers": contact_numbers,
+                "total_amount": total,
+                "payment_screenshot_url": cloudinary_url,
+                "payment_status": "Submitted"
+            }
 
-    return render_template("register.html", 
-                         form_data=session.get('form_data', {}),
-                         selected_events=session.get('selected_events', []),
-                         events=EVENT_PRICES,
-                         banner_exists=os.path.exists('static/images/zeal_banner.jpeg'))
+            reg_id = add_registration(registration_data)
+            print(f"Registration SUCCESS | ID: {reg_id}")
+
+            session.pop('form_data', None)
+            session.pop('selected_events', None)
+
+            return render_template(
+                "register.html",
+                success=True,
+                registration_id=reg_id,
+                form_data={},
+                selected_events=[],
+                events=EVENT_PRICES,
+                banner_exists=os.path.exists('static/images/zeal_banner.jpeg')
+            )
+
+    return render_template(
+        "register.html",
+        form_data=session.get('form_data', {}),
+        selected_events=session.get('selected_events', []),
+        events=EVENT_PRICES,
+        banner_exists=os.path.exists('static/images/zeal_banner.jpeg')
+    )
+
+
+
+def is_already_registered(student_name, roll_no):
+    """Check if student name + roll number already exists"""
+    try:
+        connection = get_db_connection()
+        if connection is None:
+            return False
+
+        cursor = connection.cursor()
+        query = """
+        SELECT id FROM registrations
+        WHERE student_name = %s AND roll_no = %s
+        LIMIT 1
+        """
+        cursor.execute(query, (student_name.strip(), roll_no.strip()))
+        result = cursor.fetchone()
+
+        cursor.close()
+        connection.close()
+
+        return result is not None
+
+    except Error as e:
+        print(f"Duplicate check error: {e}")
+        return False
+
+
 
 # ---------------- ADMIN ----------------
 @app.route("/adminmgizeal")
