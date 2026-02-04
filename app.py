@@ -121,6 +121,7 @@ def init_db():
             id INT AUTO_INCREMENT PRIMARY KEY,
             student_name VARCHAR(255) NOT NULL,
             roll_no VARCHAR(100) NOT NULL,
+            email VARCHAR(255) NOT NULL,
             course VARCHAR(255) NOT NULL,
             college VARCHAR(255) NOT NULL,
             college_id VARCHAR(100),
@@ -165,15 +166,16 @@ def add_registration(registration_data):
         
         insert_query = """
         INSERT INTO registrations 
-        (student_name, roll_no, course, college, college_id, other_college, 
+        (student_name, roll_no,email, course, college, college_id, other_college, 
          events, group_members, contact_numbers, total_amount, 
          payment_screenshot_url, payment_status)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s)
         """
         
         values = (
             registration_data['student_name'],
             registration_data['roll_no'],
+            registration_data['email'],
             registration_data['course'],
             registration_data['college'],
             registration_data.get('college_id', ''),
@@ -213,7 +215,7 @@ def get_all_registrations():
         cursor = connection.cursor(dictionary=True)
         
         query = """
-        SELECT id, student_name, roll_no, course, college, college_id, 
+        SELECT id, student_name, roll_no, email, course, college, college_id, 
                other_college, events, group_members, contact_numbers, 
                total_amount, payment_screenshot_url, payment_status, 
                created_at
@@ -360,20 +362,36 @@ def register():
         step = request.form.get("step")
         print(f"Processing step: {step}")
 
-        name = request.form.get("student_name")
-        roll = request.form.get("roll_no")
-        course = request.form.get("course")
-        college = request.form.get("college")
-        college_id = request.form.get("college_id", "")
-        other_college = request.form.get("other_college", "")
-        group_members = request.form.get("group_members", "")
-        contact_numbers = request.form.get("contact_numbers")
+        name = request.form.get("student_name", "").strip()
+        roll = request.form.get("roll_no", "").strip()
+        email = request.form.get("email", "").strip()
+        course = request.form.get("course", "").strip()
+        college = request.form.get("college", "").strip()
+        college_id = request.form.get("college_id", "").strip()
+        other_college = request.form.get("other_college", "").strip()
+        group_members = request.form.get("group_members", "").strip()
+        contact_numbers = request.form.get("contact_numbers", "").strip()
+
+        # ---------------- EMAIL VALIDATION (SERVER SIDE) ----------------
+        import re
+        email_pattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+        if not email or not re.match(email_pattern, email):
+            return render_template(
+                "register.html",
+                error="Please enter a valid email address.",
+                form_data=session.get('form_data', {}),
+                selected_events=session.get('selected_events', []),
+                events=EVENT_PRICES,
+                banner_exists=os.path.exists('static/images/zeal_banner.jpeg')
+            )
 
         events_list = parse_events_with_categories(request.form)
 
+        # ---------------- STORE FORM IN SESSION ----------------
         session['form_data'] = {
             'student_name': name,
             'roll_no': roll,
+            'email': email,
             'course': course,
             'college': college,
             'college_id': college_id,
@@ -383,12 +401,12 @@ def register():
         }
         session['selected_events'] = events_list
 
-        # ================= DUPLICATE CHECK (COMMON) =================
+        # ---------------- DUPLICATE CHECK ----------------
         if step in ["qr", "final"]:
-            if is_already_registered(name, roll):
+            if is_already_registered(roll, email):
                 return render_template(
                     "register.html",
-                    error="This Name and Roll Number are already registered.",
+                    error="This Roll Number or Email is already registered.",
                     form_data=session.get('form_data', {}),
                     selected_events=session.get('selected_events', []),
                     events=EVENT_PRICES,
@@ -400,7 +418,7 @@ def register():
             if not events_list:
                 return render_template(
                     "register.html",
-                    error="Please select at least one event",
+                    error="Please select at least one event.",
                     form_data=session.get('form_data', {}),
                     selected_events=session.get('selected_events', []),
                     events=EVENT_PRICES,
@@ -473,6 +491,7 @@ def register():
             registration_data = {
                 "student_name": name,
                 "roll_no": roll,
+                "email": email,
                 "course": course,
                 "college": college,
                 "college_id": college_id,
@@ -501,6 +520,7 @@ def register():
                 banner_exists=os.path.exists('static/images/zeal_banner.jpeg')
             )
 
+    # ---------------- GET REQUEST ----------------
     return render_template(
         "register.html",
         form_data=session.get('form_data', {}),
@@ -511,8 +531,7 @@ def register():
 
 
 
-def is_already_registered(student_name, roll_no):
-    """Check if student name + roll number already exists"""
+def is_already_registered(roll_no, email):
     try:
         connection = get_db_connection()
         if connection is None:
@@ -521,15 +540,14 @@ def is_already_registered(student_name, roll_no):
         cursor = connection.cursor()
         query = """
         SELECT id FROM registrations
-        WHERE student_name = %s AND roll_no = %s
+        WHERE roll_no = %s OR email = %s
         LIMIT 1
         """
-        cursor.execute(query, (student_name.strip(), roll_no.strip()))
+        cursor.execute(query, (roll_no.strip(), email.strip()))
         result = cursor.fetchone()
 
         cursor.close()
         connection.close()
-
         return result is not None
 
     except Error as e:
@@ -560,7 +578,7 @@ def export_excel():
 
         if not data:
             df = pd.DataFrame(columns=[
-                'id', 'student_name', 'roll_no', 'course', 'college', 
+                'id', 'student_name', 'roll_no', 'email', 'course', 'college', 
                 'college_id', 'other_college', 'events', 'group_members', 
                 'contact_numbers', 'total_amount', 'payment_screenshot_url', 
                 'payment_status', 'created_at'
@@ -569,7 +587,7 @@ def export_excel():
             df = pd.DataFrame(data)
             
             column_order = [
-                'id', 'student_name', 'roll_no', 'course', 'college', 
+                'id', 'student_name', 'roll_no', 'email', 'course', 'college', 
                 'college_id', 'other_college', 'events', 'group_members', 
                 'contact_numbers', 'total_amount', 'payment_status',
                 'payment_screenshot_url', 'created_at'

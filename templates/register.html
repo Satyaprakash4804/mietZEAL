@@ -91,6 +91,15 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; b
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 @media (max-width: 640px) { .form-content { padding: 20px; } .header { padding: 30px 20px; } .total-amount { font-size: 2rem; } .qr-container { width: 220px; height: 220px; } }
 @media (max-width: 480px) { .success-content { padding: 40px 25px; } .success-icon { width: 80px; height: 80px; font-size: 3rem; } .success-content h2 { font-size: 1.5rem; } .success-buttons { flex-direction: column; } }
+.btn-whatsapp {
+    background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);
+}
+.btn-whatsapp:hover {
+    box-shadow: 0 6px 20px rgba(37, 211, 102, 0.6);
+}
+
 </style>
 </head>
 <body>
@@ -106,6 +115,18 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; b
             <p>📧 You will receive a confirmation email shortly</p>
             <p>✅ Payment verification is in progress</p>
         </div>
+         <div style="margin-top: 25px;">
+            <a href="https://chat.whatsapp.com/K6CiqlqOctpAXaRHJBdD4C"
+               target="_blank"
+               class="btn btn-primary"
+               style="display: inline-flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none;">
+                📲 Join Official WhatsApp Group
+            </a>
+        </div>
+        
+        <p style="margin-top: 12px; font-size: 0.85rem; color: #6b7280;">
+            ⚠️ Please join the WhatsApp group for event updates, schedules, and announcements.
+        </p>        
         <p style="font-size: 0.9rem; color: #9ca3af; margin-top: 10px;">
             Thank you for registering! We'll review your payment and confirm your participation soon.
         </p>
@@ -159,6 +180,16 @@ input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; b
                         <label class="required">University Roll No.</label>
                         <input type="text" name="roll_no" id="roll_no" value="{{ form_data.get('roll_no', '') }}" required>
                     </div>
+                    <div class="form-group">
+                        <label class="required">Email ID</label>
+                        <input type="text"
+                               name="email"
+                               id="email"
+                               value="{{ form_data.get('email', '') }}"
+                               placeholder="example@gmail.com"
+                               required>
+                    </div>
+                    
                 </div>
                 <div class="form-group" style="margin-top: 20px;">
                     <label class="required">Course</label>
@@ -420,6 +451,7 @@ function validateForm(beforeFinal=false) {
     const requiredFields = [
         student_name,
         roll_no,
+        email,
         course,
         college,
         contact_numbers
@@ -432,6 +464,13 @@ function validateForm(beforeFinal=false) {
             return false;
         }
     }
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(email.value.trim())) {
+       alert("⚠️ Please enter a valid email address!");
+       email.focus();
+        return false;
+    }
+
 
     if (college.value === 'Mangalmay Group of Institutions' && !college_id.value.trim()) {
         alert("⚠️ Please enter Mangalmay College ID!");

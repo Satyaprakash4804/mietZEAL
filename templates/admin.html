@@ -135,6 +135,7 @@ tbody tr:last-child td { border-bottom: none; }
                     <tr>
                         <th>ID</th>
                         <th>Student Details</th>
+                        <th>Email</th>
                         <th>Course</th>
                         <th>College</th>
                         <th>Events</th>
@@ -154,6 +155,9 @@ tbody tr:last-child td { border-bottom: none; }
                             <div class="student-name">{{ row.student_name }}</div>
                             <div style="color: #9ca3af; font-size: 0.8rem; margin-top: 2px;">{{ row.roll_no }}</div>
                         </td>
+                        <td style="font-size:0.85rem; color:#374151;">
+                          {{ row.email }} 
+                        </td>           
                         <td>{{ row.course }}</td>
                         <td>
                             <div class="college-name" title="{{ row.college }}">
